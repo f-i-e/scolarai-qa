@@ -1,0 +1,23 @@
+{
+  "name": "scholarai-qa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ScolarAI LMS MVP — QA automation (backend API first)",
+  "scripts": {
+    "test": "playwright test",
+    "test:auth": "playwright test tests/backend/auth",
+    "test:auth:scenarios": "playwright test tests/backend/auth/auth-user-scenarios.spec.ts",
+    "test:backend": "playwright test tests/backend",
+    "test:backend:ui": "playwright test tests/backend --ui",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.10.0",
+    "dotenv": "^16.4.7",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

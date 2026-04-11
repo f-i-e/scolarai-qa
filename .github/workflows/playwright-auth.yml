@@ -1,0 +1,120 @@
+# Backend auth Playwright tests:
+# 1) Artifacts — download from the Actions run (always).
+# 2) GitHub Pages — browse the HTML report online (push / manual to main|master only; see comment below).
+#
+# One-time Pages setup: Repo → Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+
+name: Playwright — backend auth
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: playwright-auth-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  auth-api-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      has_playwright_report: ${{ steps.report-meta.outputs.exists }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright (Chromium only — enough for API tests + HTML report)
+        run: npx playwright install chromium --with-deps
+
+      - name: Run backend auth tests
+        env:
+          SCHOLARAI_API_BASE_URL: ${{ vars.SCHOLARAI_API_BASE_URL }}
+          SCHOLARAI_API_VERSION_PREFIX: ${{ vars.SCHOLARAI_API_VERSION_PREFIX }}
+          SCHOLARAI_TEST_EMAIL_DOMAIN: ${{ vars.SCHOLARAI_TEST_EMAIL_DOMAIN }}
+          SCHOLARAI_VERIFIED_USER_EMAIL: ${{ secrets.SCHOLARAI_VERIFIED_USER_EMAIL }}
+          SCHOLARAI_VERIFIED_USER_PASSWORD: ${{ secrets.SCHOLARAI_VERIFIED_USER_PASSWORD }}
+        run: |
+          export SCHOLARAI_API_BASE_URL="${SCHOLARAI_API_BASE_URL:-https://test-api.scolarai.com}"
+          npx playwright test tests/backend/auth
+
+      - name: Upload Playwright HTML report (download zip from run)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload Playwright test-results (traces / attachments)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Detect HTML report for Pages
+        id: report-meta
+        if: always()
+        run: |
+          if [ -f playwright-report/index.html ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Feed GitHub Pages (next job deploys). Same folder as `npx playwright show-report`.
+      - name: Upload Pages artifact (HTML report)
+        if: always() && steps.report-meta.outputs.exists == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: playwright-report/
+
+  # Browse online at: Settings → Pages → Visit site (URL is also on the deploy job after it runs).
+  # Skips pull_request so fork PRs do not publish and main’s site is not overwritten by every PR.
+  deploy-report:
+    needs: auth-api-tests
+    if: >
+      always() &&
+      needs.auth-api-tests.result != 'cancelled' &&
+      needs.auth-api-tests.outputs.has_playwright_report == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    concurrency:
+      group: github-pages-deploy
+      cancel-in-progress: false
+
+    steps:
+      - name: Deploy Playwright report to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
