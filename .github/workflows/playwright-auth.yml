@@ -1,8 +1,13 @@
-# Backend auth Playwright tests:
-# 1) Artifacts — download from the Actions run (always).
-# 2) GitHub Pages — browse the HTML report online (push / manual to main|master only; see comment below).
+# Backend auth Playwright tests — HTML report:
 #
-# One-time Pages setup: Repo → Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+# 1) Artifacts — Actions run → playwright-report zip (always).
+# 2) Your server — set repo vars + secret below; rsync uploads playwright-report/ (static files).
+#    Example: nginx root = QA_REPORT_DEPLOY_PATH, server_name qa.kimboli.com;
+#    Vars: QA_REPORT_DEPLOY_HOST, QA_REPORT_DEPLOY_USER (optional, default ubuntu),
+#          QA_REPORT_DEPLOY_PATH (optional, default /var/www/playwright-report)
+#    Secret: QA_REPORT_SSH_KEY (deploy user private key; host key is learned via ssh-keyscan)
+#    Optional var: QA_REPORT_PUBLIC_URL — printed in job summary (e.g. https://qa.kimboli.com/)
+#    Rsync runs only on push to main|master or workflow_dispatch (not every PR), so the URL stays “latest main”.
 
 name: Playwright — backend auth
 
@@ -24,8 +29,6 @@ jobs:
   auth-api-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    outputs:
-      has_playwright_report: ${{ steps.report-meta.outputs.exists }}
 
     steps:
       - name: Checkout
@@ -72,7 +75,7 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
-      - name: Detect HTML report for Pages
+      - name: Detect HTML report for rsync / summary
         id: report-meta
         if: always()
         run: |
@@ -82,39 +85,47 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Feed GitHub Pages (next job deploys). Same folder as `npx playwright show-report`.
-      - name: Upload Pages artifact (HTML report)
-        if: always() && steps.report-meta.outputs.exists == 'true'
-        uses: actions/upload-pages-artifact@v3
+      - name: Set up SSH for QA report rsync
+        if: >
+          always() &&
+          steps.report-meta.outputs.exists == 'true' &&
+          vars.QA_REPORT_DEPLOY_HOST != '' &&
+          (github.event_name == 'workflow_dispatch' ||
+           (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')))
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          path: playwright-report/
+          ssh-private-key: ${{ secrets.QA_REPORT_SSH_KEY }}
 
-  # Browse online at: Settings → Pages → Visit site (URL is also on the deploy job after it runs).
-  # Skips pull_request so fork PRs do not publish and main’s site is not overwritten by every PR.
-  deploy-report:
-    needs: auth-api-tests
-    if: >
-      always() &&
-      needs.auth-api-tests.result != 'cancelled' &&
-      needs.auth-api-tests.outputs.has_playwright_report == 'true' &&
-      (github.event_name == 'workflow_dispatch' ||
-       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')))
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+      - name: Rsync Playwright report to your server
+        if: >
+          always() &&
+          steps.report-meta.outputs.exists == 'true' &&
+          vars.QA_REPORT_DEPLOY_HOST != '' &&
+          (github.event_name == 'workflow_dispatch' ||
+           (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')))
+        env:
+          DEPLOY_HOST: ${{ vars.QA_REPORT_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.QA_REPORT_DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.QA_REPORT_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          SSH_USER="${DEPLOY_USER:-ubuntu}"
+          REMOTE_PATH="${DEPLOY_PATH:-/var/www/playwright-report}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          rsync -avz -e ssh --delete ./playwright-report/ "${SSH_USER}@${DEPLOY_HOST}:${REMOTE_PATH}/"
 
-    permissions:
-      pages: write
-      id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    concurrency:
-      group: github-pages-deploy
-      cancel-in-progress: false
-
-    steps:
-      - name: Deploy Playwright report to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: QA report URL (job summary)
+        if: >
+          always() &&
+          steps.report-meta.outputs.exists == 'true' &&
+          vars.QA_REPORT_PUBLIC_URL != '' &&
+          (github.event_name == 'workflow_dispatch' ||
+           (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')))
+        env:
+          QA_REPORT_PUBLIC_URL: ${{ vars.QA_REPORT_PUBLIC_URL }}
+        run: |
+          {
+            echo "### QA Playwright report"
+            echo "Open: ${QA_REPORT_PUBLIC_URL}"
+          } >> "$GITHUB_STEP_SUMMARY"
