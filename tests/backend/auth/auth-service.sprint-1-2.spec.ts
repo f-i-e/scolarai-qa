@@ -18,7 +18,7 @@ import {
 
 /**
  * Backend Test Plan v1.0 — Sprints 1 & 2 — Auth Service
- * Contract aligned with OpenAPI. Routes use `SCHOLARAI_API_VERSION_PREFIX` + `/auth/...` (default `/api`).
+ * Contract aligned with OpenAPI. Routes use `SCHOLARAI_API_VERSION_PREFIX` + `/auth/...` (default `/api/v1`).
  */
 function protectedSmokePath(): string {
   return process.env.SCHOLARAI_PROTECTED_SMOKE_URL ?? paths.me;

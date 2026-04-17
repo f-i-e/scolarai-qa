@@ -24,7 +24,7 @@ test("API responds (auth register validation)", async ({ request }) => {
   if (json.error?.code === "RESOURCE_NOT_FOUND" || res.status() === 404) {
     throw new Error(
       `No route at ${paths.register} (HTTP ${res.status()}). ` +
-        `Try SCHOLARAI_API_VERSION_PREFIX=/api or /api/v1 to match your gateway. ` +
+        `Try SCHOLARAI_API_VERSION_PREFIX=/api/v1 (OpenAPI default) or /api to match your gateway. ` +
         `Keep SCHOLARAI_API_BASE_URL as origin only (e.g. https://test-api.scolarai.com).`
     );
   }

@@ -33,5 +33,10 @@ export default defineConfig({
       dependencies: ["backend-setup"],
       testMatch: /tests\/backend\/auth\/.*\.spec\.ts/,
     },
+    {
+      name: "backend-api",
+      dependencies: ["backend-setup"],
+      testMatch: /tests\/backend\/api\/.*\.spec\.ts/,
+    },
   ],
 });
