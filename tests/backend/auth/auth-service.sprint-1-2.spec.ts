@@ -105,26 +105,22 @@ test.describe("Sprints 1 & 2 — Auth Service (Test Plan v1.0)", () => {
 
   test.describe("TC07 — POST /auth/login — verified credentials", () => {
     test("200; JWT access token + refresh token returned", async ({ request }) => {
-      const email = process.env.SCHOLARAI_VERIFIED_USER_EMAIL;
+      const email = process.env.SCHOLARAI_VERIFIED_USER_EMAIL?.trim();
       const password = process.env.SCHOLARAI_VERIFIED_USER_PASSWORD;
 
-      if (email && password) {
-        const res = await request.post(paths.login, { data: { email, password } });
-        expect(res.status(), await res.text()).toBe(200);
-        const json = await readEnvelope(res);
-        expect(json.success, json.message).toBe(true);
-        const s = extractSession(json.data);
-        expect(s.accessToken, "access token in body").toBeTruthy();
-        expect(s.refreshToken, "refresh token in body").toBeTruthy();
-        return;
-      }
+      test.skip(
+        !email || !password,
+        "TC07 requires a **verified** account: set SCHOLARAI_VERIFIED_USER_EMAIL and SCHOLARAI_VERIFIED_USER_PASSWORD. " +
+          "Fresh register → login often returns 403 until email verification (see TC09); that is API-correct, not a server bug."
+      );
 
-      const { login } = await registerAndLoginStudent(request);
-      expect(login.res.status(), login.json.message).toBe(200);
-      expect(login.json.success, login.json.message).toBe(true);
-      const s = extractSession(login.json.data);
-      expect(s.accessToken).toBeTruthy();
-      expect(s.refreshToken).toBeTruthy();
+      const res = await request.post(paths.login, { data: { email, password } });
+      const json = await readEnvelope(res);
+      expect(res.status(), json.message).toBe(200);
+      expect(json.success, json.message).toBe(true);
+      const s = extractSession(json.data);
+      expect(s.accessToken, "access token in body").toBeTruthy();
+      expect(s.refreshToken, "refresh token in body").toBeTruthy();
     });
   });
 

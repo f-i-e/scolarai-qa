@@ -12,9 +12,20 @@ export const healthRoutes = {
 /** Routes under `SCHOLARAI_API_VERSION_PREFIX` (default `/api/v1`). */
 export const apiRoutes = {
   users: `${apiRoutePrefix}/users`,
+  userById: (id: string) => `${apiRoutePrefix}/users/${encodeURIComponent(id)}`,
+  userProfileCreate: `${apiRoutePrefix}/users/profile`,
   userProfileMe: `${apiRoutePrefix}/users/profile/me`,
+  userProfileUpdate: `${apiRoutePrefix}/users/profile/update`,
+  userProfileSearch: `${apiRoutePrefix}/users/profile/search`,
+  learnerProfiles: `${apiRoutePrefix}/users/learner-profiles`,
   learnerProfilesMe: `${apiRoutePrefix}/users/learner-profiles/me`,
+  learnerProfileById: (id: string) =>
+    `${apiRoutePrefix}/users/learner-profiles/${encodeURIComponent(id)}`,
   learnerCountriesList: `${apiRoutePrefix}/users/learner-profiles/countries/list`,
+  learnerStatesByCountry: (countryId: string) =>
+    `${apiRoutePrefix}/users/learner-profiles/countries/${encodeURIComponent(countryId)}/states`,
+  learnerSchoolsByState: (stateId: string) =>
+    `${apiRoutePrefix}/users/learner-profiles/states/${encodeURIComponent(stateId)}/schools`,
   lessons: `${apiRoutePrefix}/lessons`,
   lessonBySlug: (slug: string) => `${apiRoutePrefix}/lessons/${encodeURIComponent(slug)}`,
   assessments: `${apiRoutePrefix}/assessments`,
