@@ -106,7 +106,7 @@ test.describe("Sprints 1 & 2 — Auth Service (Test Plan v1.0)", () => {
   test.describe("TC07 — POST /auth/login — verified credentials", () => {
     test("200; JWT access token + refresh token returned", async ({ request }) => {
       const email = process.env.SCHOLARAI_VERIFIED_USER_EMAIL?.trim();
-      const password = process.env.SCHOLARAI_VERIFIED_USER_PASSWORD;
+      const password = process.env.SCHOLARAI_VERIFIED_USER_PASSWORD?.trimEnd();
 
       test.skip(
         !email || !password,
@@ -198,14 +198,62 @@ test.describe("Sprints 1 & 2 — Auth Service (Test Plan v1.0)", () => {
 
   test.describe("TC11 — Access token expiry (~15m) — 401 on protected route", () => {
     test("401 when access token expired (manual / seeded token)", async ({ request }) => {
+      // This test may intentionally wait until a JWT expires.
+      if (process.env.SCHOLARAI_WAIT_FOR_TOKEN_EXPIRY === "1") {
+        test.setTimeout(25 * 60_000);
+      }
+
       const url = protectedSmokePath();
-      const expired = process.env.SCHOLARAI_EXPIRED_ACCESS_TOKEN;
-      test.skip(!expired, "Set SCHOLARAI_EXPIRED_ACCESS_TOKEN (defaults to GET /auth/me if no SCHOLARAI_PROTECTED_SMOKE_URL)");
+      const expired = process.env.SCHOLARAI_EXPIRED_ACCESS_TOKEN?.trim();
+      if (expired) {
+        const res = await request.get(url, {
+          headers: { Authorization: `Bearer ${expired}` },
+        });
+        expect(res.status()).toBe(401);
+        return;
+      }
+
+      // No pre-baked expired token: optionally generate one and wait for natural expiry.
+      test.skip(
+        process.env.SCHOLARAI_WAIT_FOR_TOKEN_EXPIRY !== "1",
+        "Set SCHOLARAI_EXPIRED_ACCESS_TOKEN, or set SCHOLARAI_WAIT_FOR_TOKEN_EXPIRY=1 to login and wait until the access token expires."
+      );
+
+      const email = process.env.SCHOLARAI_VERIFIED_USER_EMAIL?.trim();
+      const password = process.env.SCHOLARAI_VERIFIED_USER_PASSWORD?.trimEnd();
+      test.skip(!email || !password, "Waiting for expiry requires SCHOLARAI_VERIFIED_USER_EMAIL/PASSWORD");
+
+      const loginRes = await request.post(paths.login, { data: { email, password } });
+      const loginJson = await readEnvelope(loginRes);
+      expect(loginRes.status(), loginJson.message).toBe(200);
+      const { accessToken } = extractSession(loginJson.data);
+      expect(accessToken).toBeTruthy();
+
+      const payload = decodeJwtPayload(accessToken!);
+      const exp = payload.exp;
+      if (typeof exp !== "number") {
+        test.skip(true, "JWT has no numeric exp claim; cannot wait for expiry");
+        return;
+      }
+
+      const expIso = new Date(exp * 1000).toISOString();
+      // Print so QA can reuse the token manually if needed.
+      console.log(`[TC11] Generated accessToken exp=${expIso}`);
+      console.log(`[TC11] accessToken=${accessToken}`);
+
+      const nowMs = Date.now();
+      const expMs = exp * 1000;
+      const waitMs = Math.max(0, expMs - nowMs) + 5_000; // buffer past exp
+
+      // Avoid hanging forever if backend changes token TTL unexpectedly.
+      expect(waitMs, `Token expiry wait too long: ${waitMs}ms`).toBeLessThanOrEqual(20 * 60_000);
+
+      await new Promise((r) => setTimeout(r, waitMs));
 
       const res = await request.get(url, {
-        headers: { Authorization: `Bearer ${expired}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
-      expect(res.status()).toBe(401);
+      expect(res.status(), await res.text()).toBe(401);
     });
   });
 
@@ -370,8 +418,8 @@ test.describe("Sprints 1 & 2 — Auth Service (Test Plan v1.0)", () => {
 
   test.describe("TC22–TC23 — Login response: refresh httpOnly cookie; access token body-only", () => {
     test("Set-Cookie refresh is HttpOnly; access token not in cookies", async ({ request }) => {
-      const email = process.env.SCHOLARAI_VERIFIED_USER_EMAIL;
-      const password = process.env.SCHOLARAI_VERIFIED_USER_PASSWORD;
+      const email = process.env.SCHOLARAI_VERIFIED_USER_EMAIL?.trim();
+      const password = process.env.SCHOLARAI_VERIFIED_USER_PASSWORD?.trimEnd();
 
       let loginRes;
       if (email && password) {

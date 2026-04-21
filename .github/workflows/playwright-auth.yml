@@ -9,7 +9,7 @@
 #    Optional var: QA_REPORT_PUBLIC_URL — printed in job summary (e.g. https://qa.kimboli.com/)
 #    Rsync runs only on push to main|master or workflow_dispatch (not every PR), so the URL stays “latest main”.
 
-name: Playwright — backend (auth + API)
+name: Playwright — backend + frontend
 
 on:
   push:
@@ -46,16 +46,18 @@ jobs:
       - name: Install Playwright (Chromium only — enough for API tests + HTML report)
         run: npx playwright install chromium --with-deps
 
-      - name: Run backend tests (auth + OpenAPI smoke)
+      - name: Run all tests (backend + frontend)
         env:
           SCHOLARAI_API_BASE_URL: ${{ vars.SCHOLARAI_API_BASE_URL }}
           SCHOLARAI_API_VERSION_PREFIX: ${{ vars.SCHOLARAI_API_VERSION_PREFIX }}
           SCHOLARAI_TEST_EMAIL_DOMAIN: ${{ vars.SCHOLARAI_TEST_EMAIL_DOMAIN }}
           SCHOLARAI_VERIFIED_USER_EMAIL: ${{ secrets.SCHOLARAI_VERIFIED_USER_EMAIL }}
           SCHOLARAI_VERIFIED_USER_PASSWORD: ${{ secrets.SCHOLARAI_VERIFIED_USER_PASSWORD }}
+          SCHOLARAI_FRONTEND_BASE_URL: ${{ vars.SCHOLARAI_FRONTEND_BASE_URL }}
         run: |
           export SCHOLARAI_API_BASE_URL="${SCHOLARAI_API_BASE_URL:-https://test-api.scolarai.com}"
-          npx playwright test tests/backend
+          export SCHOLARAI_FRONTEND_BASE_URL="${SCHOLARAI_FRONTEND_BASE_URL:-https://develop.kimboli.com}"
+          npx playwright test
 
       - name: Upload Playwright HTML report (download zip from run)
         if: always()

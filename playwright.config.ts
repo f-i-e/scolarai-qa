@@ -7,6 +7,8 @@ import { defineConfig } from "@playwright/test";
  */
 const baseURL =
   process.env.SCHOLARAI_API_BASE_URL ?? "https://test-api.scolarai.com";
+const frontendBaseURL =
+  process.env.SCHOLARAI_FRONTEND_BASE_URL ?? "https://develop.kimboli.com";
 
 export default defineConfig({
   testDir: "tests",
@@ -37,6 +39,13 @@ export default defineConfig({
       name: "backend-api",
       dependencies: ["backend-setup"],
       testMatch: /tests\/backend\/api\/.*\.spec\.ts/,
+    },
+    {
+      name: "frontend-ui",
+      testMatch: /tests\/frontend\/.*\.spec\.ts/,
+      use: {
+        baseURL: frontendBaseURL,
+      },
     },
   ],
 });

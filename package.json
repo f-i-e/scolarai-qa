@@ -9,6 +9,7 @@
     "test:api": "playwright test tests/backend/api",
     "test:roles": "playwright test tests/backend/api/roles.spec.ts",
     "test:users": "playwright test tests/backend/api/users.spec.ts",
+    "test:frontend": "playwright test tests/frontend",
     "test:auth:scenarios": "playwright test tests/backend/auth/auth-user-scenarios.spec.ts",
     "test:backend": "playwright test tests/backend",
     "test:backend:ui": "playwright test tests/backend --ui",

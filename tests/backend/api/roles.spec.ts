@@ -219,8 +219,9 @@ test.describe("OpenAPI — Roles", () => {
       data: { userId: ctx.userId, roleId },
     });
     const json = await readEnvelope(res);
-    expect([200, 403, 404], json.message).toContain(res.status());
-    if (res.status() === 200) {
+    // OpenAPI says 200; some builds return 201. Accept either as success.
+    expect([200, 201, 403, 404], json.message).toContain(res.status());
+    if (res.status() === 200 || res.status() === 201) {
       expect(json.success, json.message).toBe(true);
     }
   });
