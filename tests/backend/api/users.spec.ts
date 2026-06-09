@@ -3,7 +3,7 @@ import { apiRoutes } from "../helpers/api-routes";
 import { bearerAuth } from "../helpers/auth-headers";
 import { readEnvelope } from "../helpers/json";
 import { extractSession } from "../helpers/auth-builders";
-import { postLogin, registerAndLoginStudent } from "../helpers/auth-flow";
+import { bootstrapSession } from "../helpers/auth-flow";
 import { decodeJwtPayload } from "../helpers/jwt-payload";
 
 function userIdFromLoginEnvelope(data: unknown, accessToken: string | undefined): string | undefined {
@@ -42,43 +42,21 @@ test.describe("OpenAPI — Users", () => {
   };
 
   test("authenticate — JWT + user id", async ({ request }) => {
-    const verifiedEmail = process.env.SCHOLARAI_VERIFIED_USER_EMAIL;
-    const verifiedPassword = process.env.SCHOLARAI_VERIFIED_USER_PASSWORD;
-
-    let loginJson = null as Awaited<ReturnType<typeof postLogin>>["json"] | null;
-    let status = 0;
-
-    if (verifiedEmail && verifiedPassword) {
-      const login = await postLogin(request, verifiedEmail, verifiedPassword);
-      status = login.res.status();
-      loginJson = login.json;
-    }
-
-    if (status !== 200) {
-      const { login } = await registerAndLoginStudent(request);
-      status = login.res.status();
-      loginJson = login.json;
-    }
-
-    if (status !== 200 || !loginJson) {
+    const session = await bootstrapSession(request);
+    if (!session.accessToken) {
       test.skip(
         true,
-        "Login must succeed — set SCHOLARAI_VERIFIED_USER_EMAIL/PASSWORD (email verification gate often makes fresh register→login return 403)"
+        session.reason ?? "Login/refresh failed — set SCHOLARAI_VERIFIED_USER_* in .env"
       );
       return;
     }
 
-    const s = extractSession(loginJson.data);
-    if (!s.accessToken) {
-      test.skip(true, "API must return accessToken in login data");
-      return;
-    }
-    const uid = userIdFromLoginEnvelope(loginJson.data, s.accessToken);
+    const uid = userIdFromLoginEnvelope(null, session.accessToken);
     if (!uid) {
-      test.skip(true, "Could not resolve user id from login body or JWT sub");
+      test.skip(true, "Could not resolve user id from JWT sub");
       return;
     }
-    ctx.accessToken = s.accessToken;
+    ctx.accessToken = session.accessToken;
     ctx.userId = uid;
   });
 

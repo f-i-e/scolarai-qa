@@ -9,9 +9,13 @@
     "test:api": "playwright test tests/backend/api",
     "test:roles": "playwright test tests/backend/api/roles.spec.ts",
     "test:users": "playwright test tests/backend/api/users.spec.ts",
+    "test:assessments": "playwright test tests/backend/api/assessments.spec.ts",
+    "test:curriculum": "playwright test tests/backend/api/curriculum-curricula.spec.ts",
+    "test:billing": "playwright test tests/backend/api/billing.spec.ts",
     "test:frontend": "playwright test tests/frontend",
     "test:auth:scenarios": "playwright test tests/backend/auth/auth-user-scenarios.spec.ts",
     "test:backend": "playwright test tests/backend",
+    "test:openapi": "playwright test tests/backend/api/openapi-coverage.spec.ts",
     "test:backend:ui": "playwright test tests/backend --ui",
     "test:report": "playwright show-report"
   },

@@ -55,7 +55,8 @@ jobs:
           SCHOLARAI_VERIFIED_USER_PASSWORD: ${{ secrets.SCHOLARAI_VERIFIED_USER_PASSWORD }}
           SCHOLARAI_FRONTEND_BASE_URL: ${{ vars.SCHOLARAI_FRONTEND_BASE_URL }}
         run: |
-          export SCHOLARAI_API_BASE_URL="${SCHOLARAI_API_BASE_URL:-https://test-api.scolarai.com}"
+          export SCHOLARAI_API_BASE_URL="${SCHOLARAI_API_BASE_URL:-https://api.testing.scolarai.com}"
+          export SCHOLARAI_API_VERSION_PREFIX="${SCHOLARAI_API_VERSION_PREFIX:-/v1}"
           export SCHOLARAI_FRONTEND_BASE_URL="${SCHOLARAI_FRONTEND_BASE_URL:-https://develop.kimboli.com}"
           npx playwright test
 
