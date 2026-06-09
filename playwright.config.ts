@@ -6,7 +6,7 @@ import { defineConfig } from "@playwright/test";
  * Wrong: https://host/api/v1 + path /auth/register → resolves to https://host/auth/register (broken).
  */
 const baseURL =
-  process.env.SCHOLARAI_API_BASE_URL ?? "https://test-api.scolarai.com";
+  process.env.SCHOLARAI_API_BASE_URL ?? "https://api.testing.scolarai.com";
 const frontendBaseURL =
   process.env.SCHOLARAI_FRONTEND_BASE_URL ?? "https://develop.kimboli.com";
 
@@ -39,6 +39,8 @@ export default defineConfig({
       name: "backend-api",
       dependencies: ["backend-setup"],
       testMatch: /tests\/backend\/api\/.*\.spec\.ts/,
+      // One worker avoids many parallel logins (rate limits / flaky 401 on api.testing).
+      workers: process.env.CI ? 2 : 1,
     },
     {
       name: "frontend-ui",

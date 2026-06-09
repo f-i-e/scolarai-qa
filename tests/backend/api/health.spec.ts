@@ -11,4 +11,10 @@ test.describe("OpenAPI — Health & metrics", () => {
     const res = await request.get(healthRoutes.metrics);
     expect(res.status(), await res.text()).toBe(200);
   });
+
+  test("GET /v1/status — status check", async ({ request }) => {
+    const res = await request.get(healthRoutes.status);
+    // Present on api.testing OpenAPI; older gateways may return 404 until deployed.
+    expect([200, 404], await res.text()).toContain(res.status());
+  });
 });

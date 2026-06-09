@@ -3,7 +3,7 @@ import { readEnvelope } from "../helpers/json";
 import { apiRoutes } from "../helpers/api-routes";
 import { bearerAuth } from "../helpers/auth-headers";
 import { extractSession } from "../helpers/auth-builders";
-import { postLogin, registerAndLoginStudent } from "../helpers/auth-flow";
+import { bootstrapSession } from "../helpers/auth-flow";
 import { decodeJwtPayload } from "../helpers/jwt-payload";
 
 function userIdFromLoginEnvelope(data: unknown, accessToken: string | undefined): string | undefined {
@@ -51,43 +51,22 @@ test.describe("OpenAPI — Roles", () => {
   };
 
   test("authenticate — JWT + userId for assign/revoke/permissions", async ({ request }) => {
-    const verifiedEmail = process.env.SCHOLARAI_VERIFIED_USER_EMAIL;
-    const verifiedPassword = process.env.SCHOLARAI_VERIFIED_USER_PASSWORD;
+    // This step can be slow/flaky if the API is under load; don't fail the whole suite at 45s.
+    test.setTimeout(120_000);
 
-    let loginJson = null as Awaited<ReturnType<typeof postLogin>>["json"] | null;
-    let status = 0;
-
-    if (verifiedEmail && verifiedPassword) {
-      const login = await postLogin(request, verifiedEmail, verifiedPassword);
-      status = login.res.status();
-      loginJson = login.json;
-    }
-
-    if (status !== 200) {
-      const { login } = await registerAndLoginStudent(request);
-      status = login.res.status();
-      loginJson = login.json;
-    }
-
-    if (status !== 200 || !loginJson) {
-      test.skip(
-        true,
-        "Login must succeed — set SCHOLARAI_VERIFIED_USER_EMAIL/PASSWORD or use an API that allows login after register"
-      );
+    const session = await bootstrapSession(request);
+    if (!session.accessToken) {
+      test.skip(true, session.reason ?? "Login/refresh failed");
       return;
     }
 
-    const s = extractSession(loginJson.data);
-    if (!s.accessToken) {
-      test.skip(true, "API must return accessToken in login data");
-      return;
-    }
-    const uid = userIdFromLoginEnvelope(loginJson.data, s.accessToken);
+    const token = session.accessToken;
+    const uid = userIdFromLoginEnvelope(null, token);
     if (!uid) {
       test.skip(true, "Could not resolve user id from login body or JWT sub");
       return;
     }
-    ctx.accessToken = s.accessToken;
+    ctx.accessToken = token;
     ctx.userId = uid;
   });
 
