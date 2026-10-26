@@ -29,6 +29,10 @@ export type OpenApiContext = {
   sessionId?: string;
   subjectId?: string;
   learnerProfileId?: string;
+  chatSessionId?: string;
+  chatMessageId?: string;
+  tutorClassId?: string;
+  rosterStudentId?: string;
 };
 
 export async function buildOpenApiContext(
@@ -156,6 +160,21 @@ export async function buildOpenApiContext(
   if (learnerMeRes.status() === 200 && learnerMeJson.data) {
     const data = learnerMeJson.data as Record<string, unknown>;
     if (typeof data.id === "string") ctx.learnerProfileId = data.id;
+  }
+
+  const chatSessionsRes = await request.get(apiRoutes.chatSessions, { headers });
+  const chatSessionsJson = await readEnvelope(chatSessionsRes);
+  if (chatSessionsRes.status() === 200 && chatSessionsJson.success) {
+    ctx.chatSessionId = pickFirstIdFromList(chatSessionsJson.data);
+  }
+
+  const tutorClassesRes = await request.get(
+    `${apiRoutes.tutorClasses}?page=1&limit=5`,
+    { headers }
+  );
+  const tutorClassesJson = await readEnvelope(tutorClassesRes);
+  if (tutorClassesRes.status() === 200 && tutorClassesJson.success) {
+    ctx.tutorClassId = pickFirstIdFromList(tutorClassesJson.data);
   }
 
   return ctx;

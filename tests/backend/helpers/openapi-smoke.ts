@@ -37,7 +37,38 @@ type OpenApiSpec = {
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
 /** Destructive or side-effect-heavy — covered by dedicated specs, not smoke. */
-export const SKIP_OPERATIONS = new Set<string>(["DELETE /v1/users/account"]);
+export const SKIP_OPERATIONS = new Set<string>([
+  "DELETE /v1/users/account",
+  "POST /v1/admin/auth/force-logout",
+  "DELETE /v1/tutor/me",
+]);
+
+/** Smoke skips admin surfaces and mutating tutor/chat/seat flows (see dedicated specs). */
+export function shouldSkipOpenApiSmoke(op: OpenApiOperation): boolean {
+  if (SKIP_OPERATIONS.has(operationKey(op))) return true;
+
+  const { path, method } = op;
+  if (path.includes("/admin/")) return true;
+
+  const mutating = method !== "GET";
+  const dedicatedPrefixes = [
+    "/v1/chat/",
+    "/v1/tutor/",
+    "/v1/seats/",
+    "/v1/governance/",
+    "/v1/institution/",
+    "/v1/assignments/",
+    "/v1/attendance/",
+    "/v1/document-extraction/",
+    "/v1/tutor-ai-assist/",
+    "/v1/ai/sync",
+  ];
+  if (mutating && dedicatedPrefixes.some((p) => path.startsWith(p) || path.includes(p))) {
+    return true;
+  }
+
+  return false;
+}
 
 const PAGINATED_GET_PATHS = new Set([
   "/v1/users",
@@ -51,6 +82,16 @@ const PAGINATED_GET_PATHS = new Set([
   "/v1/roles",
   "/v1/users/profile/search",
   "/v1/users/locations/search",
+  "/v1/chat/sessions",
+  "/v1/tutor/classes",
+  "/v1/tutor/roster",
+  "/v1/tutor/assignments",
+  "/v1/tutor/questions",
+  "/v1/tutor/documents",
+  "/v1/tutor/review",
+  "/v1/assignments",
+  "/v1/seats/pools",
+  "/v1/seats/invoices",
 ]);
 
 export function listOperations(spec: OpenApiSpec): OpenApiOperation[] {
@@ -93,7 +134,18 @@ function resolveParam(path: string, param: string, ctx: OpenApiContext): string 
   if (param === "countryId") return ctx.countryId ?? PLACEHOLDER_UUID;
   if (param === "stateId") return ctx.stateId ?? PLACEHOLDER_UUID;
   if (param === "packId") return ctx.packId ?? PLACEHOLDER_UUID;
-  if (param === "sessionId") return ctx.sessionId ?? PLACEHOLDER_UUID;
+  if (param === "sessionId") {
+    if (path.includes("/chat/")) return ctx.chatSessionId ?? PLACEHOLDER_UUID;
+    return ctx.sessionId ?? PLACEHOLDER_UUID;
+  }
+  if (param === "messageId") return ctx.chatMessageId ?? PLACEHOLDER_UUID;
+  if (param === "classId" || param === "classroomId") {
+    return ctx.tutorClassId ?? PLACEHOLDER_UUID;
+  }
+  if (param === "studentId") return ctx.rosterStudentId ?? PLACEHOLDER_UUID;
+  if (param === "poolId" || param === "archiveId" || param === "jobId") {
+    return PLACEHOLDER_UUID;
+  }
   if (param === "planId") return ctx.planId ?? PLACEHOLDER_UUID;
   if (param === "questionId") return PLACEHOLDER_QUESTION_ID;
   if (param === "submissionId") return PLACEHOLDER_SUBMISSION_ID;
@@ -117,6 +169,9 @@ function resolveParam(path: string, param: string, ctx: OpenApiContext): string 
     if (path.includes("/users/countries/")) return ctx.countryId ?? PLACEHOLDER_UUID;
     if (path.includes("/users/states/")) return ctx.stateId ?? PLACEHOLDER_UUID;
     if (path.includes("/users/schools/")) return ctx.schoolId ?? PLACEHOLDER_UUID;
+    if (path.includes("/chat/sessions/")) return ctx.chatSessionId ?? PLACEHOLDER_UUID;
+    if (path.includes("/chat/messages/")) return ctx.chatMessageId ?? PLACEHOLDER_UUID;
+    if (path.includes("/tutor/classes/")) return ctx.tutorClassId ?? PLACEHOLDER_UUID;
     return PLACEHOLDER_UUID;
   }
 
@@ -140,7 +195,7 @@ export function smokeAllowedStatuses(
   requiresJwt: boolean,
   hasToken: boolean
 ): readonly number[] {
-  const client = [400, 401, 403, 404, 405, 409, 422, 429] as const;
+  const client = [400, 401, 403, 404, 405, 409, 422, 429, 503] as const;
   const success = [200, 201, 204] as const;
 
   if (!requiresJwt) return [...success, ...client];

@@ -262,4 +262,25 @@ export const apiRoutes = {
   rolesRevoke: `${apiRoutePrefix}/roles/revoke`,
   userRolePermissions: (userId: string) =>
     `${apiRoutePrefix}/roles/user/${encodeURIComponent(userId)}/permissions`,
+
+  // Entitlement (Module 2)
+  meEntitlement: `${apiRoutePrefix}/me/entitlement`,
+
+  // Learner AI chat
+  chatSessions: `${apiRoutePrefix}/chat/sessions`,
+  chatSessionMessages: (sessionId: string) =>
+    `${apiRoutePrefix}/chat/sessions/${encodeURIComponent(sessionId)}/messages`,
+  chatMessageStop: (messageId: string) =>
+    `${apiRoutePrefix}/chat/messages/${encodeURIComponent(messageId)}/stop`,
+  chatMessageFeedback: (messageId: string) =>
+    `${apiRoutePrefix}/chat/messages/${encodeURIComponent(messageId)}/feedback`,
+
+  // Tutor portal
+  tutorMe: `${apiRoutePrefix}/tutor/me`,
+  tutorWorkspace: `${apiRoutePrefix}/tutor/workspace`,
+  tutorClasses: `${apiRoutePrefix}/tutor/classes`,
+  tutorClassById: (id: string) =>
+    `${apiRoutePrefix}/tutor/classes/${encodeURIComponent(id)}`,
+  tutorRoster: `${apiRoutePrefix}/tutor/roster`,
+  tutorVerification: `${apiRoutePrefix}/tutor/verification`,
 } as const;

@@ -11,6 +11,20 @@ export async function postRegister(request: APIRequestContext, body: RegisterBod
   return { res, json, body };
 }
 
+/** api.testing throttles register; back off and retry before falling back to verified-user login. */
+export async function postRegisterWithRetry(
+  request: APIRequestContext,
+  body: RegisterBody,
+  maxAttempts = 6
+) {
+  let last = await postRegister(request, body);
+  for (let attempt = 1; attempt < maxAttempts && last.res.status() === 429; attempt++) {
+    await new Promise((r) => setTimeout(r, 2000 * attempt));
+    last = await postRegister(request, body);
+  }
+  return last;
+}
+
 export async function postLogin(request: APIRequestContext, email: string, password: string) {
   const res = await request.post(paths.login, { data: { email, password } });
   const json = await readEnvelope(res);
@@ -63,7 +77,13 @@ export function assertRegisterCreated(reg: { res: APIResponse; json: ApiEnvelope
 /** Registers + logs in; fails if register/login not successful (caller may skip on 403). */
 export async function registerAndLoginStudent(request: APIRequestContext) {
   const body = registerBody({ password: VALID_PASSWORD });
-  const reg = await postRegister(request, body);
+  const reg = await postRegisterWithRetry(request, body);
+  if (reg.res.status() === 429) {
+    throw new Error(
+      `POST ${paths.register} → HTTP 429 (rate limit). ` +
+        `Set SCHOLARAI_VERIFIED_USER_EMAIL/PASSWORD in .env instead of registering on each run.`
+    );
+  }
   assertRegisterCreated(reg);
 
   const login = await postLogin(request, body.email, body.password);
@@ -75,7 +95,13 @@ export async function registerAndLoginAs(
   role: RegisterBody["role"]
 ) {
   const body = registerBody({ password: VALID_PASSWORD, role });
-  const reg = await postRegister(request, body);
+  const reg = await postRegisterWithRetry(request, body);
+  if (reg.res.status() === 429) {
+    throw new Error(
+      `POST ${paths.register} → HTTP 429 (rate limit) for role ${role}. ` +
+        `Set verified credentials in .env instead.`
+    );
+  }
   assertRegisterCreated(reg);
   const login = await postLogin(request, body.email, body.password);
   return { body, reg, login };
@@ -92,6 +118,13 @@ async function accessTokenFromLoginWithReason(
   login: Awaited<ReturnType<typeof postLogin>>
 ): Promise<BootstrapSession> {
   if (login.res.status() !== 200 || !login.json.success) {
+    if (login.res.status() === 403) {
+      return {
+        reason:
+          `POST ${paths.login} → HTTP 403 (email not verified). ` +
+          `Use SCHOLARAI_VERIFIED_USER_EMAIL/PASSWORD in .env.`,
+      };
+    }
     return {
       reason: `POST ${paths.login} → HTTP ${login.res.status()}: ${login.json.message}`,
     };
@@ -171,6 +204,49 @@ export async function bootstrapAccessToken(
 ): Promise<string | undefined> {
   const { accessToken } = await bootstrapSession(request);
   return accessToken;
+}
+
+/** Login using explicit credentials (e.g. verified tutor account in CI secrets). */
+export async function bootstrapSessionWithCredentials(
+  request: APIRequestContext,
+  email: string,
+  password: string
+): Promise<BootstrapSession> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const login = await postLogin(request, email, password);
+    if (login.res.status() === 401 && attempt === 0) {
+      await new Promise((r) => setTimeout(r, 750));
+      continue;
+    }
+    const session = await accessTokenFromLoginWithReason(request, login);
+    if (session.accessToken || session.reason) return session;
+  }
+  return { reason: `Login failed for ${email}` };
+}
+
+export async function bootstrapTutorSession(
+  request: APIRequestContext
+): Promise<BootstrapSession> {
+  const email = process.env.SCHOLARAI_VERIFIED_TUTOR_EMAIL?.trim();
+  const password = process.env.SCHOLARAI_VERIFIED_TUTOR_PASSWORD?.trim();
+  if (email && password) {
+    return bootstrapSessionWithCredentials(request, email, password);
+  }
+
+  try {
+    const { login } = await registerAndLoginAs(request, "TUTOR");
+    const session = await accessTokenFromLoginWithReason(request, login);
+    if (session.accessToken) return session;
+    if (session.reason) return session;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { reason: `Tutor register/login fallback failed: ${msg}` };
+  }
+
+  return {
+    reason:
+      "No SCHOLARAI_VERIFIED_TUTOR_* in .env and register→login as TUTOR did not yield a token",
+  };
 }
 
 export { extractSession, registerBody, VALID_PASSWORD };

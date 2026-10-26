@@ -1,5 +1,9 @@
-import "dotenv/config";
+import path from "path";
+import dotenv from "dotenv";
 import { defineConfig } from "@playwright/test";
+
+// Always load scholarai/scolarai-qa/.env — not process.cwd() (monorepo root breaks credentials).
+dotenv.config({ path: path.join(__dirname, ".env") });
 
 /**
  * Use **origin only** (scheme + host, optional port). Do not set …/api/v1 here — that lives in `paths.ts`.
@@ -26,6 +30,10 @@ export default defineConfig({
     },
   },
   projects: [
+    {
+      name: "unit",
+      testMatch: /tests\/unit\/.*\.spec\.ts/,
+    },
     {
       name: "backend-setup",
       testMatch: /tests\/backend\/backend\.setup\.ts/,

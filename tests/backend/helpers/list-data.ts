@@ -1,10 +1,9 @@
 /** Extract first string `id` from common paginated list shapes. */
 export function pickFirstIdFromList(data: unknown): string | undefined {
   const rows = listRows(data);
-  if (!rows?.length) return undefined;
-  const first = rows[0] as Record<string, unknown>;
-  const id = first?.id ?? first?.lessonId;
-  return typeof id === "string" && id.length > 0 ? id : undefined;
+  const first = firstRow(rows);
+  if (!first) return undefined;
+  return firstString(first.id, first.lessonId, first.sessionId);
 }
 
 /** Lesson list items may expose `id`, `lessonId`, or only `slug`. */
@@ -12,17 +11,27 @@ export function pickLessonRef(
   data: unknown
 ): { lessonId?: string; slug?: string } | undefined {
   const rows = listRows(data);
-  if (!rows?.length) return undefined;
-  const first = rows[0] as Record<string, unknown>;
-  const lessonId =
-    typeof first?.id === "string"
-      ? first.id
-      : typeof first?.lessonId === "string"
-        ? first.lessonId
-        : undefined;
-  const slug = typeof first?.slug === "string" ? first.slug : undefined;
+  const first = firstRow(rows);
+  if (!first) return undefined;
+  const lessonId = firstString(first.id, first.lessonId);
+  const slug = firstString(first.slug);
   if (lessonId || slug) return { lessonId, slug };
   return undefined;
+}
+
+function firstRow(
+  rows: unknown[] | undefined
+): Record<string, unknown> | undefined {
+  const first = rows?.[0];
+  return first !== null && typeof first === "object" && !Array.isArray(first)
+    ? (first as Record<string, unknown>)
+    : undefined;
+}
+
+function firstString(...values: unknown[]): string | undefined {
+  return values.find(
+    (value): value is string => typeof value === "string" && value.length > 0
+  );
 }
 
 function listRows(data: unknown): unknown[] | undefined {

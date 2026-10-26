@@ -7,7 +7,7 @@ import {
   invokeOperation,
   operationKey,
   smokeAllowedStatuses,
-  SKIP_OPERATIONS,
+  shouldSkipOpenApiSmoke,
 } from "../helpers/openapi-smoke";
 
 const operations = listOperations(spec);
@@ -30,8 +30,8 @@ test.describe("OpenAPI — full spec coverage (api.testing)", () => {
     test(title, async ({ request }) => {
       const ctx = state.ctx;
 
-      if (SKIP_OPERATIONS.has(key)) {
-        test.skip(true, "Skipped — destructive; covered by dedicated user-journey specs");
+      if (shouldSkipOpenApiSmoke(op)) {
+        test.skip(true, "Skipped — admin/destructive or covered by dedicated feature specs");
         return;
       }
 
