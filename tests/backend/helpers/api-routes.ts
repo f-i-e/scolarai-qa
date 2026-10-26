@@ -28,6 +28,40 @@ export const apiRoutes = {
     `${apiRoutePrefix}/admin/billing/plans/${encodeURIComponent(planId)}/price`,
   adminNotificationsBroadcast: `${apiRoutePrefix}/admin/notifications/broadcast`,
   adminNotificationsStats: `${apiRoutePrefix}/admin/notifications/stats`,
+  adminCmsEntries: `${apiRoutePrefix}/admin/cms/entries`,
+  adminCmsPageTypes: `${apiRoutePrefix}/admin/cms/page-types`,
+  adminCmsLocales: `${apiRoutePrefix}/admin/cms/locales`,
+  adminCmsCategories: `${apiRoutePrefix}/admin/cms/categories`,
+  adminCmsNavigation: `${apiRoutePrefix}/admin/cms/navigation`,
+  adminCmsMedia: `${apiRoutePrefix}/admin/cms/media`,
+  adminCmsEntryById: (id: string) =>
+    `${apiRoutePrefix}/admin/cms/entries/${encodeURIComponent(id)}`,
+  adminCmsEntryRevisions: (id: string) =>
+    `${apiRoutePrefix}/admin/cms/entries/${encodeURIComponent(id)}/revisions`,
+  adminCmsEntryTranslations: (id: string) =>
+    `${apiRoutePrefix}/admin/cms/entries/${encodeURIComponent(id)}/translations`,
+  adminCmsEntryAddTranslation: (id: string) =>
+    `${apiRoutePrefix}/admin/cms/entries/${encodeURIComponent(id)}/translations`,
+  adminCmsEntryPreviewToken: (id: string) =>
+    `${apiRoutePrefix}/admin/cms/entries/${encodeURIComponent(id)}/preview-token`,
+  adminCmsEntryArchive: (id: string) =>
+    `${apiRoutePrefix}/admin/cms/entries/${encodeURIComponent(id)}/archive`,
+  adminCmsEntryRestore: (id: string) =>
+    `${apiRoutePrefix}/admin/cms/entries/${encodeURIComponent(id)}/restore`,
+  adminCmsEntryDelete: (id: string) =>
+    `${apiRoutePrefix}/admin/cms/entries/${encodeURIComponent(id)}`,
+  cmsSite: `${apiRoutePrefix}/cms/site`,
+  cmsLocales: `${apiRoutePrefix}/cms/locales`,
+  cmsContent: `${apiRoutePrefix}/cms/content`,
+  cmsBlog: `${apiRoutePrefix}/cms/blog`,
+  cmsFaqs: `${apiRoutePrefix}/cms/faqs`,
+  cmsNavigation: `${apiRoutePrefix}/cms/nav`,
+  cmsPaths: `${apiRoutePrefix}/cms/paths`,
+  cmsRedirectMatch: `${apiRoutePrefix}/cms/redirects/match`,
+  cmsCategoryBySlug: (slug: string) =>
+    `${apiRoutePrefix}/cms/categories/${encodeURIComponent(slug)}`,
+  cmsPreview: (token: string) =>
+    `${apiRoutePrefix}/cms/preview/${encodeURIComponent(token)}`,
 
   // Analytics
   analyticsLearnerOverview: (learnerId: string) =>

@@ -4,5 +4,6 @@ export const uiRoutes = {
   tutorDashboard: "/tutor/dashboard",
   tutorClassroom: "/tutor/classroom",
   explore: "/explore",
+  cmsBlog: "/blog",
+  cmsFaq: "/faq",
 } as const;
-
